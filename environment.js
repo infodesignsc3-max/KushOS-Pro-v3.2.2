@@ -12,6 +12,6 @@ async function buildRoomTabs() {
   if (!sb) return;
   // Populate room-list datalist from grows table instead of sensor_logs
   const { data } = await sb.from('rooms').select('name').order('name');
-  const rooms = [...new Set((data||[]).map(r => r.name))];
+  const { data } = await sb.from('grow_rooms').select('name').order('name');
   updateDatalist('room-list', rooms);
 }
