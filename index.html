@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<title>KushOS Pro — Grow Management Platform</title>
+
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self' data: blob: 'unsafe-inline' 'unsafe-eval';
+  script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval';
+  style-src 'self' https://fonts.googleapis.com 'unsafe-inline' 'unsafe-eval';
+  font-src 'self' https://fonts.gstatic.com data:;
+  connect-src 'self' * wss://* https://*.supabase.co wss://*.supabase.co;
+  img-src 'self' data: https: *;
+  base-uri 'self';
+  form-action 'self';
+">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.js" crossorigin="anonymous"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="leaf-glow" style="display:none;"></div>
+<canvas id="leaf-canvas" style="opacity:0;"></canvas>
+
+<div id="login-screen">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M26 4C26 4 12 14 12 26C12 33.7 18.3 40 26 40C33.7 40 40 33.7 40 26C40 14 26 4 26 4Z" fill="#2a4a2a" stroke="#57985a" stroke-width="1.5"/>
+        <path d="M26 10C26 10 18 18 18 26C18 30.4 21.6 34 26 34C30.4 34 34 30.4 34 26C34 18 26 10 26 10Z" fill="#1e341e" stroke="#6dbf70" stroke-width="1"/>
+        <line x1="26" y1="40" x2="26" y2="48" stroke="#57985a" stroke-width="2" stroke-linecap="round"/>
+        <line x1="20" y1="44" x2="32" y2="44" stroke="#3d6b3d" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="26" cy="26" r="4" fill="#6dbf70" opacity="0.8"/>
+      </svg>
+      <h1>KushOS Pro</h1>
+      <span>Grow Management Platform</span>
+    </div>
+    <form class="login-form" onsubmit="event.preventDefault(); doLogin()">
+      <input type="text" name="username" autocomplete="username" value="kushos-user" style="display:none" aria-hidden="true" tabindex="-1">
+      <label>License key <span style="font-size:9px;color:var(--text3);font-weight:400;">(email or license code)</span></label>
+      <input type="text" id="login-input" placeholder="Enter your email or license code" autocomplete="username" maxlength="128" spellcheck="false" autocapitalize="none" autocorrect="off">
+      <label style="margin-top:14px;display:flex;align-items:center;gap:6px;">
+        Encryption passphrase
+        <span style="font-size:10px;font-family:var(--font-mono);color:var(--g6);font-weight:400;letter-spacing:.03em;" title="Your passphrase never leaves this browser.">🔐 browser-only</span>
+      </label>
+      <input type="password" id="login-passphrase" placeholder="Enter your encryption passphrase" autocomplete="current-password" maxlength="256" spellcheck="false">
+      <div style="font-size:10px;color:var(--g6);font-family:var(--font-mono);margin-top:4px;line-height:1.5;">
+        Used to encrypt your data locally. Never stored or sent to the server.<br>
+        <strong style="color:var(--amber-l);">⚠ If you forget this, your encrypted data cannot be recovered.</strong>
+      </div>
+      <div class="login-error" id="login-error"></div>
+      <button type="submit" class="btn btn-primary btn-full">
+        <span id="login-btn-text">ENTER LAB →</span>
+      </button>
+      
+      <button type="button" class="btn btn-ghost btn-full" style="margin-top: 6px; border-color: var(--gold);" onclick="doDemoBypass()">
+        ⚡ ENTER AS DEMO (OFFLINE BYPASS)
+      </button>
+    </form>
+    <div class="login-footer">v3.2 · Zero-Knowledge · Supabase RLS · AES-256-GCM</div>
+  </div>
+</div>
+
+<div id="app">
+
+  <div id="demo-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#c9a227,#e8a845);color:#1a0f00;text-align:center;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.08em;padding:6px 12px;">
+    ⚡ DEMO MODE — Showing sample data. No changes will be saved.
+    <button onclick="disableDemoMode()" style="margin-left:12px;background:rgba(0,0,0,.2);border:none;border-radius:4px;color:inherit;font-family:inherit;font-size:10px;padding:2px 8px;cursor:pointer;">Exit Demo</button>
+  </div>
+
+  <div class="topbar">
+    <div class="topbar-logo">
+      <svg viewBox="0 0 26 26" fill="none"><path d="M13 2C13 2 6 7 6 13C6 16.9 9.1 20 13 20C16.9 20 20 16.9 20 13C20 7 13 2 13 2Z" fill="#2a4a2a" stroke="#57985a" stroke-width="1"/><circle cx="13" cy="13" r="3" fill="#6dbf70" opacity="0.8"/><line x1="13" y1="20" x2="13" y2="24" stroke="#57985a" stroke-width="1.5" stroke-linecap="round"/></svg>
+      KushOS Pro
+    </div>
+    <div class="topbar-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" placeholder="Search plants, batches, tasks…" id="global-search">
+    </div>
+    <div class="topbar-right">
+      <div class="season-chip" id="season-chip" title="Manage Seasons" style="cursor:pointer;">🌱 Season</div>
+      <div id="crypto-lock-indicator" class="rt-badge unlocked" title="Passphrase not set · data stored unencrypted" onclick="showCryptoStatus()" style="cursor:pointer;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+      </div>
+      <div class="rt-badge" id="rt-badge">
+        <div class="rt-dot"></div>
+        <span id="rt-label">OFFLINE</span>
+      </div>
+      <div class="topbar-avatar" id="user-avatar" onclick="switchModule('users')" title="User Management">AD</div>
+    </div>
+  </div>
+
+  <div class="main-layout">
+
+    <nav class="sidebar">
+      <div class="nav-section">
+        <div class="nav-section-label">Overview</div>
+        <button class="nav-item active" onclick="switchModule('dashboard',this)" id="nav-dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-item" onclick="switchModule('analytics',this)" id="nav-analytics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Analytics
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Cultivation</div>
+        <button class="nav-item" onclick="switchModule('grows',this)" id="nav-grows">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12 6.5 2 12 2z"/><path d="M12 6v12"/><path d="M8 10l4-4 4 4"/></svg>
+          Active Grows
+          <span class="nbadge" id="grows-count">─</span>
+        </button>
+        <button class="nav-item" onclick="switchModule('strains',this)" id="nav-strains">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          Strain Library
+        </button>
+        <button class="nav-item" onclick="switchModule('rooms',this)" id="nav-rooms">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Grow Rooms
+          <span class="nbadge">3</span>
+        </button>
+
+        <button class="nav-item" onclick="switchModule('nutrients',this)" id="nav-nutrients">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6M12 2v8l4 4M8 22h8M12 18v4"/><circle cx="12" cy="14" r="4"/></svg>
+          Nutrient Log
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Operations</div>
+        <button class="nav-item" onclick="switchModule('harvests',this)" id="nav-harvests">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 2-3 9H2l7 5-3 9 9-6 9 6-3-9 7-5h-7z"/></svg>
+          Harvest Log
+        </button>
+        <button class="nav-item" onclick="switchModule('tasks',this)" id="nav-tasks">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Task Manager
+          <span class="nbadge nalert" id="tasks-count">─</span>
+        </button>
+        <button class="nav-item" onclick="switchModule('inventory',this)" id="nav-inventory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          Inventory
+        </button>
+        <button class="nav-item" onclick="switchModule('schedule',this)" id="nav-schedule">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Schedule
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Business</div>
+        <button class="nav-item" onclick="switchModule('sales',this)" id="nav-sales">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Sales & Revenue
+        </button>
+        <button class="nav-item" onclick="switchModule('compliance',this)" id="nav-compliance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Compliance
+        </button>
+        <button class="nav-item" onclick="switchModule('reports',this)" id="nav-reports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Reports
+        </button>
+      </div>
+      <div class="nav-section" id="admin-nav-section">
+        <div class="nav-section-label">Admin</div>
+        <button class="nav-item" onclick="switchModule('users',this)" id="nav-users">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Users
+        </button>
+        <button class="nav-item" onclick="switchModule('settings',this)" id="nav-settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </button>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="nav-item" onclick="doLogout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </button>
+      </div>
+    </nav>
+
+    <main class="content">
+
+      <div class="module active" id="module-dashboard">
+        <div class="page-header">
+          <div><h2>Dashboard</h2><p>Live overview of your grow operation</p></div>
+          <div class="page-actions">
+            <button class="btn btn-ghost btn-sm" onclick="switchModule('analytics')">View Analytics</button>
+          </div>
+        </div>
+        <div class="module-body">
+          <div class="stats-row" id="dash-stats">
+            <div class="stat-card"><div class="stat-label">Active Batches</div><div class="stat-value" id="ds-batches">─</div><div class="stat-sub">Across all rooms</div></div>
+            <div class="stat-card gold"><div class="stat-label">Total Yield YTD</div><div class="stat-value" id="ds-yield">─</div><div class="stat-sub up" id="ds-yield-sub">─</div></div>
+            <div class="stat-card"><div class="stat-label">Pending Tasks</div><div class="stat-value" id="ds-tasks">─</div><div class="stat-sub">Requiring action</div></div>
+            <div class="stat-card red"><div class="stat-label">Active Alerts</div><div class="stat-value" id="ds-alerts">0</div><div class="stat-sub down">Check environment</div></div>
+          </div>
+          <div class="grower-notes">
+            <div class="grower-notes-title">Grower's Field Notes — Best Practices</div>
+            <div class="notes-grid">
+              <div class="note-item note-do"><div class="note-icon">✅</div><div class="note-text"><strong>DO:</strong> Check pH daily — keep between 5.8–6.5 for coco/hydro, 6.0–7.0 for soil. Consistent readings prevent nutrient lock-out.</div></div>
+              <div class="note-item note-avoid"><div class="note-icon">❌</div><div class="note-text"><strong>AVOID:</strong> Don't flush unnecessarily — modern nutrients don't build up the way old-school products did. Only flush if you see salt crusting or severe pH drift.</div></div>
+              <div class="note-item note-do"><div class="note-icon">✅</div><div class="note-text"><strong>DO:</strong> Maintain VPD between 0.8–1.2 kPa in veg and 1.0–1.5 kPa in flower. VPD drives transpiration and nutrient uptake rate.</div></div>
+              <div class="note-item note-avoid"><div class="note-icon">❌</div><div class="note-text"><strong>AVOID:</strong> Never let humidity exceed 60% RH during flowering week 4+. Botrytis (bud rot) can devastate an entire harvest in 48–72 hours.</div></div>
+              <div class="note-item note-do"><div class="note-icon">✅</div><div class="note-text"><strong>DO:</strong> Keep CO₂ at 1000–1500 ppm during lights-on with high PPFD. Below 800 ppm at 600+ PPFD, you're leaving yield on the table.</div></div>
+              <div class="note-item note-avoid"><div class="note-icon">❌</div><div class="note-text"><strong>AVOID:</strong> Don't harvest based on calendar alone. Check trichomes under 60–100× magnification. Cloudy = peak THC, amber = degraded. Aim for mostly cloudy, some amber.</div></div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-header"><div class="panel-title">Today's Tasks</div><button class="btn btn-ghost btn-sm" onclick="switchModule('tasks')">View All</button></div>
+              <div class="panel-body"><div id="dash-tasks-list" class="loading">Waiting for user data...</div></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-analytics">
+        <div class="page-header">
+          <div><h2>Analytics & Insights</h2><p>Performance metrics and historical crop tracking trends</p></div>
+          <div class="page-actions"><button class="btn btn-ghost btn-sm">Export Data Set</button></div>
+        </div>
+        <div class="module-body">
+          <div class="stats-row">
+            <div class="stat-card"><div class="stat-label">Gram Per Watt Avg</div><div class="stat-value">1.48g</div><div class="stat-sub">Target: 1.65g</div></div>
+            <div class="stat-card gold"><div class="stat-label">Canopy Efficiency</div><div class="stat-value">62g/sqft</div><div class="stat-sub up">+8.1% vs last season</div></div>
+            <div class="stat-card"><div class="stat-label">VPD Stability Margin</div><div class="stat-value">94.2%</div><div class="stat-sub">Lights-on metrics</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Crop Performance Metrics Over Time</div></div>
+            <div class="panel-body">
+              <div class="chart-container" style="position: relative; height:320px; background:rgba(0,0,0,0.15); border:1px dashed var(--g6); border-radius:4px; display:flex; align-items:center; justify-content:center;">
+                <canvas id="analytics-primary-canvas"></canvas>
+                <div style="position:absolute; color:var(--text3); font-family:var(--font-mono); font-size:12px;">[Analytics Dynamic Engine Interfaced via chart.js]</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-grows">
+        <div class="page-header">
+          <div><h2>Active Cultivation Batches</h2><p>Manage and transition current plant cohorts</p></div>
+          <div class="page-actions"><span class="badge badge-green" id="grows-count">0</span><button class="btn btn-primary btn-sm" onclick="openModal('modal-batch')">+ New Batch</button></div>
+        </div>
+        <div class="module-body">
+          <div id="grows-grid" class="loading">Loading batches…</div>
+        </div>
+      </div>
+
+      <div class="module" id="module-strains">
+        <div class="page-header">
+          <div><h2>Strain Library</h2><p>Genetic profile tracking database and phenotypic taxonomy properties</p></div>
+          <div class="page-actions"><button class="btn btn-primary btn-sm" onclick="openModal('modal-strain')">+ Add Genetic Line</button></div>
+        </div>
+        <div class="module-body">
+          <div class="panel" style="padding:0;">
+            <table class="data-table">
+              <thead>
+                <tr><th>Strain Profile</th><th>Classification</th><th>Flowering Duration</th><th>Optimal pH/EC Setpoint</th><th>Breeder Source</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="strains-tbody">
+                <tr><td colspan="6" class="loading">Sourcing genetic register...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-rooms">
+        <div class="page-header">
+          <div><h2>Grow Rooms & Environmental Zones</h2><p>Physical footprint mapping and facility layouts</p></div>
+          <div class="page-actions"><button class="btn btn-primary btn-sm" onclick="openAddRoom()">+ Add Room</button></div>
+        </div>
+        <div class="module-body">
+          <div id="rooms-grid" class="two-col">
+            </div>
+        </div>
+      </div>
+
+
+      <div class="module" id="module-nutrients">
+        <div class="page-header">
+          <div><h2>Nutrient Mix Ledger</h2><p>Track chemical element injection ratios, reservoir cycles, and run-off data</p></div>
+          <div class="page-actions">
+            <select id="feed-batch-filter" onchange="loadFeedLogs()" style="font-size:11px;padding:4px 8px;"><option value="">All Batches</option></select>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-feed')">+ Log Feed</button>
+          </div>
+        </div>
+        <div class="module-body">
+          <div class="panel" style="padding:0;">
+            <table class="data-table">
+              <thead>
+                <tr><th>Date</th><th>Batch</th><th>Week</th><th>pH In</th><th>pH Out</th><th>EC</th><th>Vol L</th><th>Nutrients</th><th>Notes</th><th></th></tr>
+              </thead>
+              <tbody id="feed-tbody">
+                <tr><td colspan="10" class="loading">Loading formulation ledgers…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-harvests">
+        <div class="page-header">
+          <div><h2>Harvest Log</h2><p>Yield tracking metrics, moisture dry down, and curing logs</p></div>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-harvest')">+ Log Harvest</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportEncryptedPayloadJSON()">Export</button>
+          </div>
+        </div>
+        <div class="module-body">
+          <div id="harvest-stats" class="stats-row" style="margin-bottom:12px;"></div>
+          <div class="panel" style="padding:0;">
+            <table class="data-table">
+              <thead>
+                <tr><th>Date</th><th>Batch</th><th>Strain</th><th>Plants</th><th>Wet g</th><th>Dry g</th><th>g/Plant</th><th>THC%</th><th>Grade</th><th>Lab</th><th></th></tr>
+              </thead>
+              <tbody id="harvest-tbody">
+                <tr><td colspan="11" class="loading">Loading harvest records…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-tasks">
+        <div class="page-header">
+          <div><h2>Task Manager</h2><p>Operational directives, IPM actions, and daily crop schedules</p></div>
+          <div class="page-actions"><span class="badge badge-amber" id="tasks-count">─</span><button class="btn btn-primary btn-sm" onclick="editTask(null)">+ Add Directive</button></div>
+        </div>
+        <div class="module-body">
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-header"><div class="panel-title">Pending</div></div>
+              <div class="panel-body" id="tasks-pending"><div class="loading">Loading…</div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><div class="panel-title">Completed</div></div>
+              <div class="panel-body" id="tasks-done"><div class="loading">Loading…</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-inventory">
+        <div class="page-header">
+          <div><h2>Inventory Stock</h2><p>Chemical components, packaging supplies, substrates, and facility hardware</p></div>
+          <div class="page-actions"><button class="btn btn-primary btn-sm" onclick="openModal('modal-inventory')">+ Adjust Stock Balance</button></div>
+        </div>
+        <div class="module-body">
+          <div class="panel" style="padding:0;">
+            <table class="data-table">
+              <thead>
+                <tr><th>SKU</th><th>Item Name</th><th>Category</th><th>Current Level</th><th>Unit Type</th><th>Reorder Level Threshold</th></tr>
+              </thead>
+              <tbody id="inventory-tbody">
+                <tr><td colspan="6" class="loading">Polling physical stock ledgers...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-schedule">
+        <div class="page-header">
+          <div><h2>Photoperiod & Cultivation Timeline</h2><p>Visual view tracking long-term shifts, photoperiod dates, and harvest projections</p></div>
+        </div>
+        <div class="module-body">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Facility Execution Roadmap Calendar</div></div>
+            <div class="panel-body">
+              <div id="schedule-calendar-render" style="min-height:300px; display:grid; font-family:var(--font-mono); color:var(--text3); text-align:center; align-items:center;">
+                [Dynamic Schedule Calendar Block Rendering Node Container]
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-sales">
+        <div class="page-header">
+          <div><h2>Sales & Distributions</h2><p>Track batch inventory distributions, wholesale transactions, and revenue parameters</p></div>
+        </div>
+        <div class="module-body">
+          <div class="stats-row">
+            <div class="stat-card gold"><div class="stat-label">Gross Income YTD</div><div class="stat-value">$248,500</div><div class="stat-sub">From wholesale channel</div></div>
+            <div class="stat-card"><div class="stat-label">Avg. Value Per Gram</div><div class="stat-value">$3.85</div><div class="stat-sub">B2B premium blend</div></div>
+          </div>
+          <div class="panel" style="padding:0;">
+            <table class="data-table">
+              <thead>
+                <tr><th>Invoice Ref</th><th>Client Entity</th><th>Product Manifest</th><th>Weight Sent</th><th>Gross Total Val</th><th>Payment State</th></tr>
+              </thead>
+              <tbody id="sales-tbody">
+                <tr><td colspan="6" class="loading">Loading wholesale records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-compliance">
+        <div class="page-header">
+          <div><h2>Compliance & Track-and-Trace</h2><p>Regulatory logging states, track and trace systems reporting nodes, and regulatory identifiers</p></div>
+          <div class="page-actions"><button class="btn btn-ghost btn-sm">Verify Track & Trace API Sync</button></div>
+        </div>
+        <div class="module-body">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Regulatory Framework Status Monitoring</div></div>
+            <div class="panel-body">
+              <div class="form-grid">
+                <div class="form-group"><label>Metrc User License String Key</label><input type="password" class="input-dark" value="********************************" readonly></div>
+                <div class="form-group"><label>Facility Register Index Code</label><input type="text" class="input-dark" value="LIC-2026-CULT-004A" readonly></div>
+              </div>
+              <div style="margin-top:20px; font-family:var(--font-mono); font-size:11px; color:var(--g6);">
+                🔒 System active. Plant tracking UID triggers automatically updated during phase changes via database rules configuration profiles.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-reports">
+        <div class="page-header">
+          <div><h2>Compliance Audit Reports</h2><p>Compile production spreadsheets, input costs, and historical yield configurations</p></div>
+        </div>
+        <div class="module-body">
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-header"><div class="panel-title">Yield Output Performance Profiles</div></div>
+              <div class="panel-body">
+                <p style="font-size:12px; color:var(--text3); margin-bottom:12px;">Generate batch weight summaries vs environmental conditions indexes.</p>
+                <button class="btn btn-primary btn-sm btn-full">Compile Crop Performance Report (PDF)</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><div class="panel-title">Input Asset Cost Tracking Data</div></div>
+              <div class="panel-body">
+                <p style="font-size:12px; color:var(--text3); margin-bottom:12px;">Calculate electrical costs, nutrient formulas spent, and chemical substrate allocations.</p>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-users">
+        <div class="page-header">
+          <div><h2>User Management & Identity Controls</h2><p>Manage employee interface permissions and access levels</p></div>
+          <div class="page-actions"><button class="btn btn-primary btn-sm" onclick="openModal('modal-user')">+ Register New Operator</button></div>
+        </div>
+        <div class="module-body">
+          <div class="panel" style="padding:0;">
+            <table class="data-table">
+              <thead>
+                <tr><th>User Name Identity</th><th>Role Security Cleared</th><th>Assigned Workspace Area</th><th>Last Activity Connection</th><th>Account Status</th></tr>
+              </thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="5" class="loading">Reading authentication tables metadata...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="module-settings">
+        <div class="page-header">
+          <div>
+            <h2>⚙ System Settings</h2>
+            <p>Customize units, appearance, thresholds, and workspace preferences</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-ghost btn-sm" onclick="resetAllSettings()">↺ Reset</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportSettings()">↓ Export</button>
+            <button class="btn btn-primary btn-sm" onclick="saveGlobalSettings(); saveSettings();">✓ Save All</button>
+          </div>
+        </div>
+
+        <!-- Settings Tab Bar -->
+        <div id="sett-tabs" style="display:flex;gap:2px;padding:0 28px;border-bottom:1px solid var(--border);background:var(--g1);flex-shrink:0;">
+          <button class="sett-tab active" onclick="showSettTab('units')" id="stab-units">📐 Units &amp; Locale</button>
+          <button class="sett-tab" onclick="showSettTab('appearance')" id="stab-appearance">🎨 Appearance</button>
+          <button class="sett-tab" onclick="showSettTab('thresholds')" id="stab-thresholds">🌡 Thresholds</button>
+          <button class="sett-tab" onclick="showSettTab('notifications')" id="stab-notifications">🔔 Alerts</button>
+          <button class="sett-tab" onclick="showSettTab('system')" id="stab-system">🔧 System</button>
+        </div>
+
+        <div class="module-body" style="gap:18px;">
+
+          <!-- ═══ TAB: UNITS & LOCALE ═══ -->
+          <div class="sett-pane active" id="spane-units">
+            <div class="sett-info-bar">
+              <span class="sett-info-icon">📐</span>
+              <span>All measurements and displays will update immediately when you change units.</span>
+            </div>
+            <div class="two-col">
+
+              <div class="panel">
+                <div class="sett-section-title">🌡 Temperature</div>
+                <div class="panel-body">
+                  <div class="sett-unit-cards" id="temp-unit-cards">
+                    <div class="sett-unit-card active" data-group="temp" data-val="C" onclick="selectUnitCard(this,'set-temp-unit','temp')">
+                      <div class="sett-unit-symbol">°C</div>
+                      <div class="sett-unit-name">Celsius</div>
+                      <div class="sett-unit-desc">International standard</div>
+                    </div>
+                    <div class="sett-unit-card" data-group="temp" data-val="F" onclick="selectUnitCard(this,'set-temp-unit','temp')">
+                      <div class="sett-unit-symbol">°F</div>
+                      <div class="sett-unit-name">Fahrenheit</div>
+                      <div class="sett-unit-desc">US / Imperial</div>
+                    </div>
+                    <div class="sett-unit-card" data-group="temp" data-val="K" onclick="selectUnitCard(this,'set-temp-unit','temp')">
+                      <div class="sett-unit-symbol">K</div>
+                      <div class="sett-unit-name">Kelvin</div>
+                      <div class="sett-unit-desc">Scientific / Lab</div>
+                    </div>
+                  </div>
+                  <input type="hidden" id="set-temp-unit" value="C">
+                  <div class="sett-live-preview" id="temp-preview">
+                    Preview: <span class="sett-preview-val" id="temp-preview-val">24.5 °C</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">⚖ Weight / Yield</div>
+                <div class="panel-body">
+                  <div class="sett-unit-cards">
+                    <div class="sett-unit-card active" data-group="weight" data-val="G" onclick="selectUnitCard(this,'set-weight-unit','weight')">
+                      <div class="sett-unit-symbol">g</div>
+                      <div class="sett-unit-name">Grams</div>
+                      <div class="sett-unit-desc">Small batch precision</div>
+                    </div>
+                    <div class="sett-unit-card" data-group="weight" data-val="KG" onclick="selectUnitCard(this,'set-weight-unit','weight')">
+                      <div class="sett-unit-symbol">kg</div>
+                      <div class="sett-unit-name">Kilograms</div>
+                      <div class="sett-unit-desc">Large scale ops</div>
+                    </div>
+                    <div class="sett-unit-card" data-group="weight" data-val="LBS" onclick="selectUnitCard(this,'set-weight-unit','weight')">
+                      <div class="sett-unit-symbol">lbs</div>
+                      <div class="sett-unit-name">Pounds</div>
+                      <div class="sett-unit-desc">US / Imperial</div>
+                    </div>
+                    <div class="sett-unit-card" data-group="weight" data-val="OZ" onclick="selectUnitCard(this,'set-weight-unit','weight')">
+                      <div class="sett-unit-symbol">oz</div>
+                      <div class="sett-unit-name">Ounces</div>
+                      <div class="sett-unit-desc">Retail / dispensary</div>
+                    </div>
+                  </div>
+                  <input type="hidden" id="set-weight-unit" value="G">
+                  <div class="sett-live-preview">
+                    Preview: <span class="sett-preview-val" id="weight-preview-val">450 g</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">💰 Currency &amp; Pricing</div>
+                <div class="panel-body">
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label>Currency Symbol</label>
+                      <select id="set-currency" onchange="updateCurrencyPreview()">
+                        <option value="USD">$ — US Dollar</option>
+                        <option value="EUR">€ — Euro</option>
+                        <option value="GBP">£ — British Pound</option>
+                        <option value="CAD">C$ — Canadian Dollar</option>
+                        <option value="AUD">A$ — Australian Dollar</option>
+                        <option value="CHF">Fr — Swiss Franc</option>
+                        <option value="JPY">¥ — Japanese Yen</option>
+                        <option value="MXN">MX$ — Mexican Peso</option>
+                        <option value="BTC">₿ — Bitcoin</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Price Per Unit Weight</label>
+                      <select id="set-price-per">
+                        <option value="G">Per Gram</option>
+                        <option value="OZ">Per Ounce</option>
+                        <option value="LBS">Per Pound</option>
+                        <option value="KG">Per Kilogram</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Decimal Separator</label>
+                      <select id="set-decimal-sep">
+                        <option value=".">Period  1,234.56</option>
+                        <option value=",">Comma  1.234,56</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Number Format</label>
+                      <select id="set-num-format">
+                        <option value="short">Short  1.2K / 3.4M</option>
+                        <option value="full">Full  1,200 / 3,400,000</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="sett-live-preview">
+                    Preview: <span class="sett-preview-val" id="currency-preview-val">$12.50 / g</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">🗓 Date, Time &amp; Locale</div>
+                <div class="panel-body">
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label>Date Format</label>
+                      <select id="sett-date-format">
+                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                        <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                        <option value="DD MMM YYYY">DD MMM YYYY</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Time Format</label>
+                      <select id="set-time-format">
+                        <option value="12h">12-hour (AM/PM)</option>
+                        <option value="24h">24-hour</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Week Starts On</label>
+                      <select id="set-week-start">
+                        <option value="sun">Sunday</option>
+                        <option value="mon">Monday</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Timezone Override</label>
+                      <select id="sett-timezone">
+                        <option value="local">System Local</option>
+                        <option value="UTC">UTC</option>
+                        <option value="America/Los_Angeles">US/Pacific</option>
+                        <option value="America/Denver">US/Mountain</option>
+                        <option value="America/Chicago">US/Central</option>
+                        <option value="America/New_York">US/Eastern</option>
+                        <option value="Europe/London">Europe/London</option>
+                        <option value="Europe/Berlin">Europe/Berlin</option>
+                        <option value="Asia/Tokyo">Asia/Tokyo</option>
+                      </select>
+                    </div>
+                    <div class="form-group full">
+                      <label>Facility Identity</label>
+                      <input type="text" id="set-facility-name" placeholder="KushOS Grow Lab Alpha" style="width:100%">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ═══ TAB: APPEARANCE ═══ -->
+          <div class="sett-pane" id="spane-appearance">
+            <div class="sett-info-bar">
+              <span class="sett-info-icon">🎨</span>
+              <span>Personalize your workspace. Changes apply instantly — no reload needed.</span>
+            </div>
+            <div class="two-col">
+
+              <div class="panel">
+                <div class="sett-section-title">🌈 Accent Color</div>
+                <div class="panel-body">
+                  <div class="color-swatch-row" style="margin-bottom:14px;">
+                    <div class="color-swatch active" style="background:#6dbf70;" data-hex="#6dbf70" data-bg="#2a4a2a" onclick="setAccent('#6dbf70','#2a4a2a',this)" title="Forest Green"></div>
+                    <div class="color-swatch" style="background:#5ba3f5;" data-hex="#5ba3f5" data-bg="#1a3a5a" onclick="setAccent('#5ba3f5','#1a3a5a',this)" title="Sky Blue"></div>
+                    <div class="color-swatch" style="background:#e8c84a;" data-hex="#e8c84a" data-bg="#4a3a10" onclick="setAccent('#e8c84a','#4a3a10',this)" title="Gold"></div>
+                    <div class="color-swatch" style="background:#e8a845;" data-hex="#e8a845" data-bg="#4a2a08" onclick="setAccent('#e8a845','#4a2a08',this)" title="Amber"></div>
+                    <div class="color-swatch" style="background:#a98ee8;" data-hex="#a98ee8" data-bg="#2e1e5a" onclick="setAccent('#a98ee8','#2e1e5a',this)" title="Violet"></div>
+                    <div class="color-swatch" style="background:#ff5555;" data-hex="#ff5555" data-bg="#4a1414" onclick="setAccent('#ff5555','#4a1414',this)" title="Red Alert"></div>
+                    <div class="color-swatch" style="background:#4ecdc4;" data-hex="#4ecdc4" data-bg="#0e3030" onclick="setAccent('#4ecdc4','#0e3030',this)" title="Teal"></div>
+                    <div class="color-swatch" style="background:#ff6b6b;" data-hex="#ff6b6b" data-bg="#3a1010" onclick="setAccent('#ff6b6b','#3a1010',this)" title="Coral"></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <label style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">Custom hex</label>
+                    <input type="color" id="sett-custom-color" value="#6dbf70" style="width:36px;height:28px;border:1px solid var(--border);background:var(--g2);border-radius:6px;cursor:pointer;padding:2px;" onchange="setAccentFromPicker(this.value)">
+                    <span id="sett-custom-hex" style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">#6dbf70</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">🌙 Theme</div>
+                <div class="panel-body">
+                  <div class="sett-theme-cards">
+                    <div class="sett-theme-card active" data-theme="dark" onclick="selectThemeCard(this)">
+                      <div class="sett-theme-preview dark-preview"></div>
+                      <span>Dark</span>
+                    </div>
+                    <div class="sett-theme-card" data-theme="light" onclick="selectThemeCard(this)">
+                      <div class="sett-theme-preview light-preview"></div>
+                      <span>Light</span>
+                    </div>
+                    <div class="sett-theme-card" data-theme="system" onclick="selectThemeCard(this)">
+                      <div class="sett-theme-preview system-preview"></div>
+                      <span>Auto</span>
+                    </div>
+                  </div>
+                  <input type="hidden" id="sett-theme" value="dark">
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">✨ Visual Effects</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Scanline Overlay</div>
+                      <div class="sett-toggle-desc">CRT-style scanline texture</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-scanlines" onchange="setScanlines(this.checked)"><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Leaf Glow Aura</div>
+                      <div class="sett-toggle-desc">Ambient background glow effect</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-glow" onchange="const l=document.getElementById('leaf-glow');if(l)l.style.display=this.checked?'block':'none';saveSettings();"><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Hardware Acceleration</div>
+                      <div class="sett-toggle-desc">GPU-accelerated canvas rendering</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-hw-accel" onchange="toggleHardwareAccel(this.checked)"><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Chart Smoothing</div>
+                      <div class="sett-toggle-desc">Bezier curve interpolation</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-smoothing" checked onchange="applyChartSmoothing(this.checked)"><span class="toggle-slider"></span></label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">📐 Layout &amp; Scale</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:16px;">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Watermark Opacity</label>
+                      <span class="range-val" id="sett-opacity-val">5%</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-opacity" min="0" max="30" value="5" oninput="const c=document.getElementById('leaf-canvas');if(c)c.style.opacity=this.value/100;document.getElementById('sett-opacity-val').textContent=this.value+'%';" onchange="saveSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Font Scale</label>
+                      <span class="range-val" id="sett-font-scale-val">100%</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-font-scale" min="80" max="130" value="100" oninput="applyFontScale(this.value,false);document.getElementById('sett-font-scale-val').textContent=this.value+'%';" onchange="saveSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Panel Corner Radius</label>
+                      <span class="range-val" id="sett-radius-val">10px</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-border-radius" min="0" max="24" value="10" oninput="applyBorderRadius(this.value,false);document.getElementById('sett-radius-val').textContent=this.value+'px';" onchange="saveSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Animation Speed</label>
+                      <span class="range-val" id="sett-anim-speed-val">1x</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-anim-speed" min="0.25" max="3" step="0.25" value="1" oninput="applyAnimSpeed(this.value,false);document.getElementById('sett-anim-speed-val').textContent=this.value+'x';" onchange="saveSettings()"></div>
+                  </div>
+                  <div class="form-grid" style="margin-top:4px;">
+                    <div class="form-group">
+                      <label>Dashboard Layout</label>
+                      <select id="sett-dash-layout" onchange="applyDashLayout(this.value)">
+                        <option value="grid">Grid</option>
+                        <option value="list">List</option>
+                        <option value="masonry">Masonry</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Sidebar Position</label>
+                      <select id="sett-sidebar-pos" onchange="applySidebarPos(this.value)">
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="sett-toggle-row" style="margin-top:4px;">
+                    <div>
+                      <div class="sett-toggle-label">Compact Sidebar</div>
+                      <div class="sett-toggle-desc">Icon-only collapsed nav</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-compact" onchange="toggleCompactSidebar(this.checked)"><span class="toggle-slider"></span></label>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ═══ TAB: THRESHOLDS ═══ -->
+          <div class="sett-pane" id="spane-thresholds">
+            <div class="sett-info-bar">
+              <span class="sett-info-icon">🌡</span>
+              <span>Set alert boundaries. Readings outside these ranges will trigger warnings.</span>
+            </div>
+            <div class="two-col">
+
+              <div class="panel">
+                <div class="sett-section-title">🌡 Temperature Limits</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:16px;">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Min Safe Temp</label>
+                      <span class="range-val" id="sett-temp-min-val">18 °C</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="set-temp-min" min="10" max="25" step="0.5" value="18" oninput="updateTempDisplay()" onchange="saveGlobalSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Max Safe Temp</label>
+                      <span class="range-val" id="sett-temp-max-val">30 °C</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="set-temp-max" min="25" max="40" step="0.5" value="30" oninput="updateTempDisplay()" onchange="saveGlobalSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Alert Threshold</label>
+                      <span class="range-val" id="sett-temp-val">35 °C</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-temp-alert" min="25" max="45" value="35" oninput="document.getElementById('sett-temp-val').textContent=this.value+' °C';" onchange="saveSettings()"></div>
+                  </div>
+                  <div class="sett-threshold-viz" id="temp-viz">
+                    <div class="sett-thresh-track">
+                      <div class="sett-thresh-safe" id="temp-safe-zone"></div>
+                      <div class="sett-thresh-marker" id="temp-alert-marker"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-top:4px;">
+                      <span>10°</span><span style="color:var(--g8);">Safe Zone</span><span>45°</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">💧 Humidity &amp; VPD</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:16px;">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Flower Max RH</label>
+                      <span class="range-val" id="sett-rh-flower-val">60%</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="set-rh-max-flower" min="30" max="80" value="60" oninput="document.getElementById('sett-rh-flower-val').textContent=this.value+'%';" onchange="saveGlobalSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">RH Alert Level</label>
+                      <span class="range-val" id="sett-rh-val">65%</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-rh-alert" min="40" max="90" value="65" oninput="document.getElementById('sett-rh-val').textContent=this.value+'%';" onchange="saveSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">VPD Deviation Trigger</label>
+                      <span class="range-val" id="sett-vpd-val">0.25 kPa</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="set-vpd-threshold" min="0.05" max="1.0" step="0.05" value="0.25" oninput="document.getElementById('sett-vpd-val').textContent=parseFloat(this.value).toFixed(2)+' kPa';" onchange="saveGlobalSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">VPD Alert Limit</label>
+                      <span class="range-val" id="sett-vpd-alert-val">1.5 kPa</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-vpd-alert" min="0.5" max="3.0" step="0.1" value="1.5" oninput="document.getElementById('sett-vpd-alert-val').textContent=parseFloat(this.value).toFixed(1)+' kPa';" onchange="saveSettings()"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">🌬 CO₂ &amp; Light</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:16px;">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">CO₂ Alert (ppm)</label>
+                      <span class="range-val" id="sett-co2-val">1500 ppm</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-co2-alert" min="400" max="2000" step="50" value="1500" oninput="document.getElementById('sett-co2-val').textContent=this.value+' ppm';" onchange="saveSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Light PPFD Alert (µmol)</label>
+                      <span class="range-val" id="sett-light-val">900 µmol</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-light-alert" min="100" max="1200" step="50" value="900" oninput="document.getElementById('sett-light-val').textContent=this.value+' µmol';" onchange="saveSettings()"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">🧪 Nutrients (EC &amp; pH)</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:16px;">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">EC Alert (mS/cm)</label>
+                      <span class="range-val" id="sett-ec-val">2.5 mS</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-ec-alert" min="0.5" max="5.0" step="0.1" value="2.5" oninput="document.getElementById('sett-ec-val').textContent=parseFloat(this.value).toFixed(1)+' mS';" onchange="saveSettings()"></div>
+                  </div>
+                  <div style="display:flex;gap:14px;align-items:flex-end;">
+                    <div style="flex:1;">
+                      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                        <label class="sett-slider-label">pH Floor</label>
+                        <span class="range-val" id="sett-ph-low-val">5.8 pH</span>
+                      </div>
+                      <div class="range-wrap"><input type="range" id="sett-ph-low" min="4.0" max="7.0" step="0.1" value="5.8" oninput="document.getElementById('sett-ph-low-val').textContent=parseFloat(this.value).toFixed(1)+' pH';updatePhViz();" onchange="saveSettings()"></div>
+                    </div>
+                    <div style="flex:1;">
+                      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                        <label class="sett-slider-label">pH Ceiling</label>
+                        <span class="range-val" id="sett-ph-high-val">6.5 pH</span>
+                      </div>
+                      <div class="range-wrap"><input type="range" id="sett-ph-high" min="5.0" max="8.5" step="0.1" value="6.5" oninput="document.getElementById('sett-ph-high-val').textContent=parseFloat(this.value).toFixed(1)+' pH';updatePhViz();" onchange="saveSettings()"></div>
+                    </div>
+                  </div>
+                  <!-- pH visual bar -->
+                  <div class="sett-ph-bar-wrap">
+                    <div class="sett-ph-bar">
+                      <div class="sett-ph-gradient"></div>
+                      <div class="sett-ph-window" id="ph-window"></div>
+                      <div class="sett-ph-ticks">
+                        <span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>
+                      </div>
+                    </div>
+                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--g8);text-align:center;margin-top:4px;" id="ph-range-label">Safe: 5.8 – 6.5</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ═══ TAB: NOTIFICATIONS ═══ -->
+          <div class="sett-pane" id="spane-notifications">
+            <div class="sett-info-bar">
+              <span class="sett-info-icon">🔔</span>
+              <span>Control how and when you receive alerts from the system.</span>
+            </div>
+            <div class="two-col">
+
+              <div class="panel">
+                <div class="sett-section-title">🔔 Alert Channels</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Sound Alerts</div>
+                      <div class="sett-toggle-desc">Audible beep on threshold breach</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-sound" onchange="saveSettings()"><span class="toggle-slider"></span></label>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Alert Volume</label>
+                      <span class="range-val" id="sett-vol-val">70%</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-sound-volume" min="0" max="100" value="70" oninput="document.getElementById('sett-vol-val').textContent=this.value+'%';" onchange="saveSettings()"></div>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Email Alerts</div>
+                      <div class="sett-toggle-desc">Send email on critical events</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-notif-email" onchange="saveSettings()"><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Push Notifications</div>
+                      <div class="sett-toggle-desc">Browser push alerts</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-notif-push" onchange="saveSettings()"><span class="toggle-slider"></span></label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">🤫 Quiet Hours</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:16px;">
+                  <div class="form-group">
+                    <label>Silence Alerts Between</label>
+                    <select id="sett-notif-silence" onchange="saveSettings()">
+                      <option value="none">Never (always alert)</option>
+                      <option value="22-06">10 PM – 6 AM</option>
+                      <option value="23-07">11 PM – 7 AM</option>
+                      <option value="00-08">Midnight – 8 AM</option>
+                      <option value="custom">Custom…</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Alert Priority Level</label>
+                    <select id="set-alert-priority" onchange="saveSettings()">
+                      <option value="all">All alerts</option>
+                      <option value="high">High priority only</option>
+                      <option value="critical">Critical only</option>
+                    </select>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Allow Critical Override</div>
+                      <div class="sett-toggle-desc">Critical alerts bypass quiet hours</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-critical-override" checked onchange="saveSettings()"><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Alert Grouping</div>
+                      <div class="sett-toggle-desc">Bundle repeated alerts (5 min window)</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-alert-group" checked onchange="saveSettings()"><span class="toggle-slider"></span></label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">📊 Data &amp; Chart Settings</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:16px;">
+                  <div class="form-group">
+                    <label>Chart Type</label>
+                    <select id="sett-chart-type" onchange="applyChartType(this.value)">
+                      <option value="line">Line</option>
+                      <option value="bar">Bar</option>
+                      <option value="area">Area</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Chart Update Speed</label>
+                      <span class="range-val" id="sett-cs-val">2.0s</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-chart-speed" min="500" max="10000" step="500" value="2000" oninput="document.getElementById('sett-cs-val').textContent=(this.value/1000).toFixed(1)+'s';if(typeof setChartSpeed==='function')setChartSpeed(+this.value);" onchange="saveSettings()"></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Data History Window</label>
+                      <span class="range-val" id="sett-dp-val">60 pts</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-data-points" min="20" max="200" step="10" value="60" oninput="document.getElementById('sett-dp-val').textContent=this.value+' pts';if(typeof setDataPointWindow==='function')setDataPointWindow(+this.value);" onchange="saveSettings()"></div>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Auto-Refresh</div>
+                      <div class="sett-toggle-desc">Automatically poll for new data</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-autorefresh" checked onchange="toggleAutoRefresh(this.checked)"><span class="toggle-slider"></span></label>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                      <label class="sett-slider-label">Refresh Interval</label>
+                      <span class="range-val" id="sett-rr-val">30s</span>
+                    </div>
+                    <div class="range-wrap"><input type="range" id="sett-refresh-rate" min="5000" max="120000" step="5000" value="30000" oninput="document.getElementById('sett-rr-val').textContent=(this.value/1000).toFixed(0)+'s';" onchange="saveSettings()"></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ═══ TAB: SYSTEM ═══ -->
+          <div class="sett-pane" id="spane-system">
+            <div class="sett-info-bar">
+              <span class="sett-info-icon">🔧</span>
+              <span>Advanced system controls, security settings, and data management.</span>
+            </div>
+            <div class="two-col">
+
+              <div class="panel">
+                <div class="sett-section-title">🔐 Zero-Knowledge Security</div>
+                <div class="panel-body">
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label>Cache Lifespan (Minutes)</label>
+                      <input type="number" id="set-crypto-expiry" value="60" min="5" max="1440">
+                    </div>
+                    <div class="form-group">
+                      <label>Cipher Standard</label>
+                      <input type="text" value="AES-256-GCM" disabled style="opacity:0.5;font-family:var(--font-mono);font-size:12px;">
+                    </div>
+                    <div class="form-group">
+                      <label>Auto-Lock After Idle</label>
+                      <select id="set-autolock">
+                        <option value="0">Disabled</option>
+                        <option value="15">15 minutes</option>
+                        <option value="30">30 minutes</option>
+                        <option value="60">1 hour</option>
+                        <option value="120">2 hours</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Session Token Refresh</label>
+                      <select id="set-token-refresh">
+                        <option value="30">Every 30 min</option>
+                        <option value="60">Every hour</option>
+                        <option value="240">Every 4 hours</option>
+                        <option value="0">Manual only</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                    <button class="btn btn-danger btn-sm" type="button" onclick="purgeLocalCacheSession()">🗑 Purge Key Memory</button>
+                    <button class="btn btn-ghost btn-sm" type="button" onclick="showCryptoStatus()">🔍 Check Crypto Status</button>
+                  </div>
+                  <p style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5;font-family:var(--font-mono);">Passphrase never stored or transmitted. All encryption happens in-browser via Web Crypto API.</p>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">💾 Backup &amp; Import</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:12px;">
+                  <p style="font-size:12px;color:var(--text3);line-height:1.5;">Export all workspace data as an encrypted JSON payload for offline archiving.</p>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-ghost btn-sm" type="button" onclick="exportEncryptedPayloadJSON()">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Export Data Backup
+                    </button>
+                    <button class="btn btn-ghost btn-sm" type="button" onclick="exportSettings()">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Export Settings Only
+                    </button>
+                  </div>
+                  <div style="border-top:1px solid var(--border);padding-top:12px;">
+                    <label style="font-size:11px;color:var(--text3);font-family:var(--font-mono);display:block;margin-bottom:8px;">IMPORT SETTINGS FILE</label>
+                    <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      Choose .json file
+                      <input type="file" id="sett-import-file" accept=".json" style="display:none" onchange="importSettings(this.files[0])">
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">⚙ Developer &amp; Debug</div>
+                <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label>Console Log Level</label>
+                      <select id="sett-log-level" onchange="saveSettings()">
+                        <option value="error">Errors Only</option>
+                        <option value="warn">Warnings+</option>
+                        <option value="info">Info+</option>
+                        <option value="debug">Debug (verbose)</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Units System (Global)</label>
+                      <select id="sett-units" onchange="applyUnits(this.value)">
+                        <option value="metric">Metric (SI)</option>
+                        <option value="imperial">Imperial (US)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="sett-toggle-row">
+                    <div>
+                      <div class="sett-toggle-label">Developer Mode</div>
+                      <div class="sett-toggle-desc">Show debug overlays and metrics</div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" id="sett-dev-mode" onchange="toggleDevMode(this.checked)"><span class="toggle-slider"></span></label>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:4px;">
+                    <button class="btn btn-ghost btn-sm" type="button" onclick="triggerSystemDiagnosticsCheck()">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      Run Diagnostics
+                    </button>
+                    <button class="btn btn-danger btn-sm" type="button" onclick="resetAllSettings()">
+                      ↺ Factory Reset
+                    </button>
+                  </div>
+                  <div id="sett-diag-output" style="display:none;background:var(--g1);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:var(--font-mono);font-size:10px;color:var(--text2);line-height:1.8;margin-top:4px;"></div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="sett-section-title">ℹ System Info</div>
+                <div class="panel-body">
+                  <div class="sett-sysinfo-grid">
+                    <div class="sett-sysinfo-row"><span>Version</span><span class="mono" style="color:var(--g8);">v3.1.0-patched</span></div>
+                    <div class="sett-sysinfo-row"><span>Platform</span><span class="mono" id="si-platform">—</span></div>
+                    <div class="sett-sysinfo-row"><span>Browser</span><span class="mono" id="si-browser">—</span></div>
+                    <div class="sett-sysinfo-row"><span>Storage Used</span><span class="mono" id="si-storage">—</span></div>
+                    <div class="sett-sysinfo-row"><span>Encryption</span><span class="mono" id="si-crypto">—</span></div>
+                    <div class="sett-sysinfo-row"><span>Last Saved</span><span class="mono" id="si-last-save">—</span></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div><!-- /module-body -->
+
+        <!-- Sticky Save Bar -->
+        <div id="sett-save-bar" style="display:none;position:sticky;bottom:0;background:linear-gradient(0deg,var(--g1) 80%,transparent);padding:12px 28px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border);">
+          <button class="btn btn-ghost btn-sm" onclick="location.reload()">Discard</button>
+          <button class="btn btn-primary btn-sm" onclick="saveGlobalSettings();saveSettings();document.getElementById('sett-save-bar').style.display='none';toast('All settings saved','success');">✓ Apply &amp; Save</button>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+</div>
+
+
+
+<datalist id="room-list"></datalist>
+<datalist id="strain-list"></datalist>
+<datalist id="batch-list"></datalist>
+
+
+<!-- ═══ MODAL: Grow Batch ═══════════════════════════════════ -->
+<div class="modal-overlay" id="modal-grow">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-grow-title">New Batch</div><button class="modal-close" onclick="closeModal('modal-grow')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="grow-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Batch ID *</label><input type="text" id="g-batch" placeholder="B-2025-01" list="batch-list"></div>
+        <div class="form-group"><label>Strain *</label><input type="text" id="g-strain" placeholder="OG Kush" list="strain-list"></div>
+        <div class="form-group"><label>Room *</label><input type="text" id="g-room" placeholder="Room 1 — Flower" list="room-list"></div>
+        <div class="form-group"><label>Plant Count</label><input type="number" id="g-plants" min="1" placeholder="16"></div>
+        <div class="form-group"><label>Medium</label>
+          <select id="g-medium"><option value="">─</option><option>Coco/Perlite</option><option>Rockwool</option><option>Soil</option><option>Hydro DWC</option><option>NFT</option></select>
+        </div>
+        <div class="form-group"><label>Light Schedule</label>
+          <select id="g-light"><option value="">─</option><option>18/6</option><option>20/4</option><option>12/12</option><option>24/0</option></select>
+        </div>
+        <div class="form-group"><label>Stage</label>
+          <select id="g-stage"><option>Seedling</option><option>Vegetative</option><option>Flowering</option><option>Drying</option><option>Curing</option><option>Complete</option></select>
+        </div>
+        <div class="form-group"><label>Stage Day</label><input type="number" id="g-day" min="1" placeholder="1"></div>
+        <div class="form-group"><label>Stage Target Days</label><input type="number" id="g-target" min="1" placeholder="63"></div>
+        <div class="form-group"><label>Health</label>
+          <select id="g-health"><option>Excellent</option><option>Good</option><option>Monitor</option><option>Alert</option></select>
+        </div>
+        <div class="form-group"><label>Start Date</label><input type="date" id="g-start"></div>
+        <div class="form-group"><label>Season</label>
+          <select id="g-season"><option value="">No Season</option></select>
+        </div>
+        <div class="form-group full"><label>Notes</label><textarea id="g-notes" rows="3" placeholder="Observations, feeding notes…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-grow')">Cancel</button><button class="btn btn-primary" onclick="saveGrow()">Save Batch</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Task ══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-task-title">New Task</div><button class="modal-close" onclick="closeModal('modal-task')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="task-id">
+      <div class="form-grid">
+        <div class="form-group full"><label>Title *</label><input type="text" id="tk-title" placeholder="Water Room 1…"></div>
+        <div class="form-group"><label>Due Date</label><input type="date" id="tk-due"></div>
+        <div class="form-group"><label>Priority</label>
+          <select id="tk-priority"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select>
+        </div>
+        <div class="form-group"><label>Batch</label>
+          <select id="t-batch"><option value="">None</option></select>
+        </div>
+        <div class="form-group full"><label>Notes</label><textarea id="tk-notes" rows="3"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancel</button><button class="btn btn-primary" onclick="saveTask()">Save Task</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: User ═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-user-title">New User</div><button class="modal-close" onclick="closeModal('modal-user')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="user-id">
+      <div class="form-grid">
+        <div class="form-group full"><label>Email</label><input type="email" id="u-email" placeholder="grower@lab.com"></div>
+        <div class="form-group"><label>Access Code *</label><input type="text" id="u-code" placeholder="KUSHOS-XXXX" style="font-family:var(--font-mono)"></div>
+        <div class="form-group"><button class="btn btn-ghost btn-sm" style="margin-top:20px;" onclick="genCode()">Generate Code</button></div>
+        <div class="form-group"><label>Role</label>
+          <select id="u-role"><option value="grower">Grower</option><option value="admin">Admin</option><option value="viewer">Viewer</option></select>
+        </div>
+        <div class="form-group"><label>Active</label>
+          <select id="u-active"><option value="true">Active</option><option value="false">Inactive</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-user')">Cancel</button><button class="btn btn-primary" onclick="saveUser()">Save User</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Harvest ════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-harvest">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Log Harvest</div><button class="modal-close" onclick="closeModal('modal-harvest')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="harvest-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Batch *</label><input type="text" id="h-batch" list="batch-list"></div>
+        <div class="form-group"><label>Strain</label><input type="text" id="h-strain" list="strain-list"></div>
+        <div class="form-group"><label>Harvest Date *</label><input type="date" id="h-date"></div>
+        <div class="form-group"><label>Plant Count *</label><input type="number" id="h-plants" min="1"></div>
+        <div class="form-group"><label>Wet Weight g</label><input type="number" id="h-wet" step="1"></div>
+        <div class="form-group"><label>Dry Weight g</label><input type="number" id="h-dry" step="1"></div>
+        <div class="form-group"><label>THC %</label><input type="number" id="h-thc" step="0.1"></div>
+        <div class="form-group"><label>CBD %</label><input type="number" id="h-cbd" step="0.1"></div>
+        <div class="form-group"><label>Grade</label>
+          <select id="h-grade"><option>AAA</option><option>AA</option><option>A</option><option>Trim</option></select>
+        </div>
+        <div class="form-group"><label>Lab Tested</label>
+          <select id="h-lab"><option value="false">No</option><option value="true">Yes</option></select>
+        </div>
+        <div class="form-group"><label>Lab Name</label><input type="text" id="h-labname"></div>
+        <div class="form-group"><label>Lab Report URL</label><input type="url" id="h-laburl"></div>
+        <div class="form-group full"><label>Notes</label><textarea id="h-notes" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-harvest')">Cancel</button><button class="btn btn-primary" onclick="saveHarvest()">Save Harvest</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Feed Log ═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-feed">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Log Feed</div><button class="modal-close" onclick="closeModal('modal-feed')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="feed-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Batch *</label>
+          <select id="f-batch"><option value="">Select batch…</option></select>
+        </div>
+        <div class="form-group"><label>Feed Week</label><input type="number" id="f-week" min="1" placeholder="1"></div>
+        <div class="form-group"><label>pH In</label><input type="number" id="f-ph-in" step="0.01" placeholder="6.10"></div>
+        <div class="form-group"><label>pH Runoff</label><input type="number" id="f-ph-out" step="0.01" placeholder="6.30"></div>
+        <div class="form-group"><label>EC mS</label><input type="number" id="f-ec" step="0.01" placeholder="2.10"></div>
+        <div class="form-group"><label>Volume L</label><input type="number" id="f-vol" step="0.1" placeholder="20"></div>
+        <div class="form-group full"><label>Nutrients</label><textarea id="f-nuts" rows="2" placeholder="Flora Bloom:8ml, CalMag:3ml…"></textarea></div>
+        <div class="form-group full"><label>Notes</label><textarea id="f-notes" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-feed')">Cancel</button><button class="btn btn-primary" onclick="saveFeedLog()">Save Feed Log</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Passphrase re-entry ═══════════════════════════ -->
+<div class="modal-overlay" id="modal-passphrase" style="z-index:10000;">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header"><div class="modal-title">🔐 Re-enter Passphrase</div></div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.5;">Your session was restored, but the encryption key needs to be re-derived. Enter your passphrase to decrypt your data.</p>
+      <form id="passphrase-form" onsubmit="event.preventDefault();">
+        <input type="text" name="username" autocomplete="username" value="kushos-user" style="display:none" aria-hidden="true" tabindex="-1">
+        <input type="password" id="pp-input" name="current-password" placeholder="Encryption passphrase" style="width:100%;" autocomplete="current-password">
+      </form>
+      <div id="pp-error" style="color:var(--red-l);font-size:11px;margin-top:6px;min-height:16px;"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" id="pp-submit" style="width:100%;">Unlock</button></div>
+  </div>
+</div>
+
+<!-- STRAIN MODAL (restored from v1) -->
+<div class="modal-overlay" id="modal-strain">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-strain-title">Add Strain</div><button class="modal-close" onclick="closeModal('modal-strain')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="strain-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Name *</label><input type="text" id="st-name" placeholder="OG Kush"></div>
+        <div class="form-group"><label>Type</label><select id="st-type"><option>Hybrid</option><option>Indica</option><option>Sativa</option><option>Ruderalis</option></select></div>
+        <div class="form-group full"><label>Lineage</label><input type="text" id="st-lineage" placeholder="Chemdawg × Hindu Kush"></div>
+        <div class="form-group"><label>Flower Days</label><input type="number" id="st-flower" placeholder="63"></div>
+        <div class="form-group"><label>Avg Yield g/plant</label><input type="number" id="st-yield" placeholder="120"></div>
+        <div class="form-group"><label>THC %</label><input type="number" id="st-thc" step="0.01" placeholder="22.0"></div>
+        <div class="form-group"><label>CBD %</label><input type="number" id="st-cbd" step="0.01" placeholder="0.3"></div>
+        <div class="form-group"><label>Difficulty</label><select id="st-diff"><option>Easy</option><option selected>Medium</option><option>Hard</option><option>Expert</option></select></div>
+        <div class="form-group"><label>Status</label><select id="st-status"><option selected>Active</option><option>Testing</option><option>Archive</option></select></div>
+        <div class="form-group full"><label>Notes</label><textarea id="st-notes" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-strain')">Cancel</button><button class="btn btn-primary" onclick="saveStrain()">Save Strain</button></div>
+  </div>
+</div>
+
+<!-- SEASONS MODAL (restored from v1) -->
+<div class="modal-overlay" id="modal-seasons">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <div class="modal-title">Manage Seasons</div>
+      <button class="modal-close" onclick="closeModal('modal-seasons')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="seasons-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:280px;overflow-y:auto;"></div>
+      <button class="btn btn-ghost btn-sm" onclick="newSeasonForm()" style="margin-bottom:12px;">+ New Season</button>
+      <div id="season-form-wrap" style="display:none;border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--g2);">
+        <div style="font-size:11px;color:var(--g8);font-family:var(--font-mono);margin-bottom:10px;" id="season-form-title">New Season</div>
+        <input type="hidden" id="season-form-id">
+        <div class="form-grid">
+          <div class="form-group"><label>Season Name *</label><input type="text" id="season-form-name" placeholder="Season 5"></div>
+          <div class="form-group"><label>Season Number *</label><input type="number" id="season-form-number" placeholder="5"></div>
+          <div class="form-group"><label>Start Date</label><input type="date" id="season-form-start"></div>
+          <div class="form-group"><label>End Date</label><input type="date" id="season-form-end"></div>
+          <div class="form-group"><label>Status</label><select id="season-form-active"><option value="false">Archived</option><option value="true">Active</option></select></div>
+          <div class="form-group full"><label>Notes</label><textarea id="season-form-notes" rows="2"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('season-form-wrap').style.display='none'">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveSeason()">Save Season</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-seasons')">Close</button></div>
+  </div>
+</div>
+
+<!-- GROW ROOM MODAL (restored from v1) -->
+<div class="modal-overlay" id="modal-room">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-room-title">Add Grow Room</div>
+      <button class="modal-close" onclick="closeModal('modal-room')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="room-id">
+      <div class="form-grid">
+        <div class="form-group full"><label>Room Name *</label><input type="text" id="r-name" placeholder="Room 1 — Flower"></div>
+        <div class="form-group"><label>Stage / Use</label><select id="r-stage"><option>Seedling</option><option>Vegetative</option><option>Flowering</option><option>Drying</option><option>Curing</option><option>Nursery</option><option>Offline</option></select></div>
+        <div class="form-group"><label>Status</label><select id="r-status"><option>Active</option><option>Offline</option><option>Maintenance</option></select></div>
+        <div class="form-group"><label>Capacity (plants)</label><input type="number" id="r-capacity" placeholder="100"></div>
+        <div class="form-group"><label>Current Plants</label><input type="number" id="r-current" placeholder="0"></div>
+        <div class="form-group"><label>Size (m²)</label><input type="number" id="r-size" step="0.1" placeholder="24"></div>
+        <div class="form-group full"><label>Notes</label><textarea id="r-notes" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-room')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRoom()">Save Room</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirm-overlay">
+  <div class="confirm-box">
+    <h3>⚠ Confirm Delete</h3>
+    <p id="confirm-msg">This cannot be undone.</p>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="crypto.js"></script>
+<script src="supabase-config.js"></script>
+<script src="auth.js"></script>
+<script src="globals.js"></script>
+<script src="demo-data.js"></script>
+<script src="demo-mode.js"></script>
+<script src="core.js"></script>
+<script src="dna.js"></script>
+<script src="seasons.js"></script>
+<script src="rooms.js"></script>
+<script src="watermark.js"></script>
+<script src="dashboard.js"></script>
+<script src="environment.js"></script>
+<script src="grows.js"></script>
+<script src="nutrients.js"></script>
+<script src="harvests.js"></script>
+<script src="strains.js"></script>
+<script src="tasks.js"></script>
+<script src="users.js"></script>
+<script src="modals.js"></script>
+<script src="chart.js"></script>
+<script src="settings-full.js"></script>
+
+<script>
+// doDemoBypass and showCryptoStatus live here.
+// launchApp / doLogin / doLogout are defined in auth.js (loaded above).
+
+// HANDLES AUTONOMOUS OFFLINE BYPASS WITH SEEDED DEMO DATA MOCKS
+function doDemoBypass() {
+  console.log('⚡ Active bypass triggered. Granting entry with local sandbox data.');
+  window.currentUser = {
+    id:    'demo-sandbox-usr',
+    email: 'admin@kushos.pro',
+    role:  'admin',
+  };
+
+  window.DEMO_MODE = true;
+  if (typeof toggleDemoMode === 'function') {
+    toggleDemoMode(true);
+  } else {
+    const banner = document.getElementById('demo-banner');
+    if (banner) banner.style.display = 'block';
+  }
+
+  launchApp();
+  if (typeof toast === 'function') {
+    toast('Access granted: Sandbox environment active', 'info');
+  }
+}
+
+function showCryptoStatus() {
+  if (typeof isCryptoReady === 'function' && isCryptoReady()) {
+    toast('🔐 Encryption active — your data is protected with AES-256-GCM', 'info');
+  } else {
+    toast('⚡ Sandbox Session — Data stored unencrypted locally', 'info');
+  }
+}
+</script>
+</body>
+</html>

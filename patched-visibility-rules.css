@@ -1,0 +1,78 @@
+
+/* ═══ VISIBILITY PATCHES FOR CANNABIS LEAF WATERMARK AND GLOWS ═══ */
+#leaf-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.16;
+  transition: opacity .3s;
+}
+#leaf-canvas.ripple-active {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+/* Hide leaf watermark while login screen is visible */
+#login-screen:not([style*="display: none"]) ~ canvas#leaf-canvas,
+body.login-active #leaf-canvas {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+#leaf-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.12;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(109, 191, 112, 0.6) 0%, transparent 70%);
+  animation: leafBreath 8s ease-in-out infinite;
+}
+@keyframes leafBreath {
+  0%, 100% { opacity: 0.06; transform: scale(1); }
+  50% { opacity: 0.14; transform: scale(1.04); }
+}
+
+/* ── Login screen stack ────────────────────────────────── */
+#login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.login-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* DNA & molecule canvases — fixed full-screen, below login card but above leaf */
+#dna-canvas {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  z-index: 499 !important;
+  opacity: 1 !important;
+}
+#mol-canvas {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  z-index: 498 !important;
+  opacity: 1 !important;
+}
+
+/* Login card sits above DNA canvases */
+.login-card {
+  position: relative;
+  z-index: 501;
+  pointer-events: auto;
+}
