@@ -37,8 +37,8 @@ function switchModule(id, btn) {
 // ══════════════════════════════════════════════════════════
 function setupRealtime() {
   if (!sb) return;
+  if (realtimeSubs.length > 0) return;   ← NEW LINE
   const badge = document.getElementById('rt-badge');
-  const label = document.getElementById('rt-label');
   const srtEl = document.getElementById('sett-rt');
 
   const channel = sb.channel('kushos-rt')
